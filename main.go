@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -94,93 +95,44 @@ func ReadAntFarm(filename string) (*AntFarm, error) {
 	return antFarm, nil
 }
 
-func FindShortestPath(antFarm *AntFarm) ([]string, error) {
-	visited := make(map[string]bool)
+func FindAllPaths(antFarm *AntFarm, currentRoom string, visited map[string]bool, path []string, allPaths *[][]string) {
+	visited[currentRoom] = true
+	path = append(path, currentRoom)
 
-	queue := [][]string{}
-
-	queue = append(queue, []string{antFarm.Start})
-
-	for len(queue) > 0 {
-		path := queue[0]
-		queue = queue[1:]
-		fmt.Println("path", path)
-		fmt.Println("queue", queue)
-
-		currentRoom := path[len(path)-1]
-
-		if currentRoom == antFarm.End {
-			return path, nil
-		}
-
-		visited[currentRoom] = true
-
-		fmt.Println("currentRoom", currentRoom)
-
+	if currentRoom == antFarm.End {
+		// Добавляем найденный путь в список всех путей
+		*allPaths = append(*allPaths, append([]string{}, path...))
+	} else {
 		for _, tunnel := range antFarm.Tunnels {
+			nextRoom := ""
 			if tunnel.Room1 == currentRoom && !visited[tunnel.Room2] {
-				fmt.Println("Room1", tunnel)
-				newPath := append(path, tunnel.Room2)
-				queue = append(queue, newPath)
-				visited[tunnel.Room2] = true
+				nextRoom = tunnel.Room2
 			} else if tunnel.Room2 == currentRoom && !visited[tunnel.Room1] {
-				fmt.Println("Room2", tunnel)
-				newPath := append(path, tunnel.Room1)
-				queue = append(queue, newPath)
-				visited[tunnel.Room1] = true
+				nextRoom = tunnel.Room1
+			}
+
+			if nextRoom != "" {
+				FindAllPaths(antFarm, nextRoom, visited, path, allPaths)
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("no path found")
+	// После завершения поиска пути, снимаем метку посещения комнаты и убираем ее из пути
+	visited[currentRoom] = false
+	path = path[:len(path)-1]
 }
 
-func MoveAnts(antFarm *AntFarm, path []string) {
-	antPos := make(map[int]int) // Карта для отслеживания позиций муравьев
-	for i := 1; i <= antFarm.AntCount; i++ {
-		antPos[i] = 0 // Изначально все муравьи находятся в начальной комнате
+func FindAllPathsWrapper(antFarm *AntFarm) ([][]string, error) {
+	visited := make(map[string]bool)
+	allPaths := make([][]string, 0)
+
+	FindAllPaths(antFarm, antFarm.Start, visited, []string{}, &allPaths)
+
+	if len(allPaths) == 0 {
+		return nil, fmt.Errorf("no paths found")
 	}
 
-	// Двигаем муравьев по пути
-	for {
-		moved := false
-		for antID, pos := range antPos {
-			if pos < len(path)-1 {
-				// Если муравей еще не достиг конечной комнаты
-				currentRoom := path[pos]
-				nextRoom := path[pos+1]
-				for _, tunnel := range antFarm.Tunnels {
-					// Ищем туннел, который соединяет текущую комнату с следующей
-					if (tunnel.Room1 == currentRoom && tunnel.Room2 == nextRoom) ||
-						(tunnel.Room1 == nextRoom && tunnel.Room2 == currentRoom) {
-						// Если туннел найден, перемещаем муравья
-						fmt.Printf("L%d-%s ", antID, nextRoom)
-						antPos[antID]++
-						moved = true
-						break
-					}
-				}
-			}
-		}
-		fmt.Println() // Отделяем ходы муравьев друг от друга
-
-		if !moved {
-			break // Если ни один муравей не смог двинуться, заканчиваем цикл
-		}
-	}
-}
-
-func FindAndMoveAnts(antFarm *AntFarm) error {
-	// Находим кратчайший путь
-	shortestPath, err := FindShortestPath(antFarm)
-	if err != nil {
-		return err
-	}
-
-	// Двигаем муравьев по найденному пути
-	MoveAnts(antFarm, shortestPath)
-
-	return nil
+	return allPaths, nil
 }
 
 func main() {
@@ -194,10 +146,42 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	if antFarm != nil {
-		err := FindAndMoveAnts(antFarm)
-		if err != nil {
-			fmt.Println(err)
+	allPaths, err := FindAllPathsWrapper(antFarm)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	sort.Slice(allPaths, func(i, j int) bool {
+		return len(allPaths[i]) < len(allPaths[j])
+	})
+	allPaths1 := make([][]string, 0)
+	allPaths1 = append(allPaths1, allPaths[0])
+	// Вывод всех найденных путей
+	for _, path := range allPaths {
+		co := 0
+		for i := 1; i < len(path)-1; i++ {
+			if !RemoveMassiv(path[i], allPaths1) {
+				break
+			} else {
+				co++
+			}
+		}
+		if co != 0 && co == len(path)-2 {
+			allPaths1 = append(allPaths1, path)
 		}
 	}
+	for _, path := range allPaths1 {
+		fmt.Println(path)
+	}
+}
+
+func RemoveMassiv(a string, b [][]string) bool {
+	for _, path := range b {
+		for i := 0; i < len(path); i++ {
+			if path[i] == a {
+				return false
+			}
+		}
+	}
+	return true
 }
