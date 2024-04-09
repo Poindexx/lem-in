@@ -154,25 +154,95 @@ func main() {
 	sort.Slice(allPaths, func(i, j int) bool {
 		return len(allPaths[i]) < len(allPaths[j])
 	})
-	allPaths1 := make([][]string, 0)
-	allPaths1 = append(allPaths1, allPaths[0])
-	// Вывод всех найденных путей
+	// allPaths1 := make([][]string, 0)
+	// allPaths1 = append(allPaths1, allPaths[0])
+	// // Вывод всех найденных путей
+	// for _, path := range allPaths {
+	// 	co := 0
+	// 	for i := 1; i < len(path)-1; i++ {
+	// 		if !RemoveMassiv(path[i], allPaths1) {
+	// 			break
+	// 		} else {
+	// 			co++
+	// 		}
+	// 	}
+	// 	if co != 0 && co == len(path)-2 {
+	// 		allPaths1 = append(allPaths1, path)
+	// 	}
+	// }
+	allPaths3 := make([][][]string, 0)
+	arip := make([]string, 0)
 	for _, path := range allPaths {
+		if !AripT(path[1], arip) {
+			arip = append(arip, path[1])
+			allPaths3 = append(allPaths3, RazdeitMassiv(path[1], allPaths))
+		}
+	}
+
+	// for _, path := range allPaths3 {
+	// 	allPaths1 := make([][]string, 0)
+	// 	allPaths1 = append(allPaths1, path[0])
+	// 	// Вывод всех найденных путей
+	// 	for _, pat := range path {
+	// 		co := 0
+	// 		for i := 1; i < len(pat)-1; i++ {
+	// 			if !RemoveMassiv(pat[i], allPaths1) {
+	// 				break
+	// 			} else {
+	// 				co++
+	// 			}
+	// 		}
+	// 		if co != 0 && co == len(path)-2 {
+	// 			allPaths1 = append(allPaths1, pat)
+	// 		}
+	// 	}
+	// 	fmt.Println(allPaths1)
+	// }
+	allOnly := make([][]string, 0)
+	for i := 0; i < len(allPaths3); i++ {
 		co := 0
-		for i := 1; i < len(path)-1; i++ {
-			if !RemoveMassiv(path[i], allPaths1) {
-				break
-			} else {
+		for k := 0; k < len(allPaths3[i]); k++ {
+			if !proverkaAllOnly(allPaths3[i][k], allOnly) {
+				allOnly = append(allOnly, allPaths3[i][k])
 				co++
 			}
-		}
-		if co != 0 && co == len(path)-2 {
-			allPaths1 = append(allPaths1, path)
+			if co > 0 {
+				break
+			}
 		}
 	}
-	for _, path := range allPaths1 {
-		fmt.Println(path)
+	for _, pat := range allOnly {
+		for _, pa := range pat {
+			fmt.Print(pa, " ")
+		}
+		fmt.Println()
 	}
+}
+
+func proverkaAllOnly(a []string, b [][]string) bool {
+	if len(b) == 0 {
+		return false
+	}
+	for i := 0; i < len(b); i++ {
+		for k := 1; k < len(b[i])-1; k++ {
+			fmt.Println("22b[i][k]: ", b[i][k], "       a: ", a)
+			if !proverkaAllOnly1(b[i][k], a) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func proverkaAllOnly1(a string, b []string) bool {
+	for i := 1; i < len(b)-1; i++ {
+		fmt.Println("b[i]: ", b[i], "       a: ", a)
+		if b[i] == a {
+			fmt.Println("11b[i]: ", b[i], "       a: ", a)
+			return false
+		}
+	}
+	return true
 }
 
 func RemoveMassiv(a string, b [][]string) bool {
@@ -184,4 +254,23 @@ func RemoveMassiv(a string, b [][]string) bool {
 		}
 	}
 	return true
+}
+
+func AripT(a string, b []string) bool {
+	for i := 0; i < len(b); i++ {
+		if b[i] == a {
+			return true
+		}
+	}
+	return false
+}
+
+func RazdeitMassiv(a string, b [][]string) [][]string {
+	allPaths := make([][]string, 0)
+	for _, path := range b {
+		if path[1] == a {
+			allPaths = append(allPaths, path)
+		}
+	}
+	return allPaths
 }
