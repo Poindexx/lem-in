@@ -3,10 +3,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Room struct {
@@ -16,8 +18,8 @@ type Room struct {
 }
 
 type Path struct {
-	Rooms  []string // список комнат, через которые проходит путь
-	Length int      // общее количество комнат в пути
+	Rooms  []string
+	Length int
 }
 
 type Tunnel struct {
@@ -100,7 +102,6 @@ func FindAllPaths(antFarm *AntFarm, currentRoom string, visited map[string]bool,
 	path = append(path, currentRoom)
 
 	if currentRoom == antFarm.End {
-		// Добавляем найденный путь в список всех путей
 		*allPaths = append(*allPaths, append([]string{}, path...))
 	} else {
 		for _, tunnel := range antFarm.Tunnels {
@@ -117,9 +118,7 @@ func FindAllPaths(antFarm *AntFarm, currentRoom string, visited map[string]bool,
 		}
 	}
 
-	// После завершения поиска пути, снимаем метку посещения комнаты и убираем ее из пути
 	visited[currentRoom] = false
-	path = path[:len(path)-1]
 }
 
 func FindAllPathsWrapper(antFarm *AntFarm) ([][]string, error) {
@@ -154,22 +153,7 @@ func main() {
 	sort.Slice(allPaths, func(i, j int) bool {
 		return len(allPaths[i]) < len(allPaths[j])
 	})
-	// allPaths1 := make([][]string, 0)
-	// allPaths1 = append(allPaths1, allPaths[0])
-	// // Вывод всех найденных путей
-	// for _, path := range allPaths {
-	// 	co := 0
-	// 	for i := 1; i < len(path)-1; i++ {
-	// 		if !RemoveMassiv(path[i], allPaths1) {
-	// 			break
-	// 		} else {
-	// 			co++
-	// 		}
-	// 	}
-	// 	if co != 0 && co == len(path)-2 {
-	// 		allPaths1 = append(allPaths1, path)
-	// 	}
-	// }
+
 	allPaths3 := make([][][]string, 0)
 	arip := make([]string, 0)
 	for _, path := range allPaths {
@@ -179,44 +163,91 @@ func main() {
 		}
 	}
 
-	// for _, path := range allPaths3 {
-	// 	allPaths1 := make([][]string, 0)
-	// 	allPaths1 = append(allPaths1, path[0])
-	// 	// Вывод всех найденных путей
-	// 	for _, pat := range path {
-	// 		co := 0
-	// 		for i := 1; i < len(pat)-1; i++ {
-	// 			if !RemoveMassiv(pat[i], allPaths1) {
-	// 				break
-	// 			} else {
-	// 				co++
-	// 			}
-	// 		}
-	// 		if co != 0 && co == len(path)-2 {
-	// 			allPaths1 = append(allPaths1, pat)
-	// 		}
-	// 	}
-	// 	fmt.Println(allPaths1)
-	// }
 	allOnly := make([][]string, 0)
+	allOnly2 := make([][][]string, 0)
+	co := 0
+	ob := 0
+	qq := 0
+	llen := len(allPaths3)
+	allOnly, allOnly2 = SerchAll(co, ob, allPaths3, allOnly, allOnly2, qq, llen)
+
+	korotki := findShortestPath(allOnly2)
+
+	if len(allOnly) == len(korotki) {
+		for _, pat := range korotki {
+			for _, pa := range pat {
+				fmt.Print(pa, " ")
+			}
+			fmt.Println()
+		}
+	} else {
+		for _, pat := range allOnly {
+			for _, pa := range pat {
+				fmt.Print(pa, " ")
+			}
+			fmt.Println()
+		}
+	}
+
+}
+
+func SerchAll(co, ob int, allPaths3 [][][]string, allOnly [][]string, allOnly2 [][][]string, qq, llen int) ([][]string, [][][]string) {
+	if co == llen {
+		return allOnly, allOnly2
+	} else {
+		qq++
+		if len(allOnly) == llen-1 {
+			allOnly2 = append(allOnly2, append([][]string{}, allOnly...))
+		}
+
+	}
+
+	co = 0
+	allOnly = allOnly[:0]
+	shuffle(allPaths3)
 	for i := 0; i < len(allPaths3); i++ {
-		co := 0
 		for k := 0; k < len(allPaths3[i]); k++ {
 			if !proverkaAllOnly(allPaths3[i][k], allOnly) {
 				allOnly = append(allOnly, allPaths3[i][k])
 				co++
-			}
-			if co > 0 {
 				break
 			}
 		}
 	}
-	for _, pat := range allOnly {
-		for _, pa := range pat {
-			fmt.Print(pa, " ")
-		}
-		fmt.Println()
+
+	if qq%50 == 0 {
+		return SerchAll(co, ob, allPaths3, allOnly, allOnly2, qq, llen-1)
 	}
+	return SerchAll(co, ob, allPaths3, allOnly, allOnly2, qq, llen)
+}
+
+func findShortestPath(paths [][][]string) [][]string {
+	if len(paths) == 0 {
+		return nil
+	}
+	shortest := paths[0]
+
+	for i := 1; i < len(paths); i++ {
+		q1 := 0
+		for j := 0; j < len(shortest); j++ {
+			q1 += len(shortest[j])
+		}
+		q2 := 0
+		for j := 0; j < len(paths[i]); j++ {
+			q2 += len(paths[i][j])
+		}
+		if q2 < q1 {
+			shortest = paths[i]
+		}
+	}
+	return shortest
+}
+
+func shuffle(arr [][][]string) {
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(arr), func(i, j int) {
+		arr[i], arr[j] = arr[j], arr[i]
+	})
 }
 
 func proverkaAllOnly(a []string, b [][]string) bool {
@@ -225,20 +256,17 @@ func proverkaAllOnly(a []string, b [][]string) bool {
 	}
 	for i := 0; i < len(b); i++ {
 		for k := 1; k < len(b[i])-1; k++ {
-			fmt.Println("22b[i][k]: ", b[i][k], "       a: ", a)
 			if !proverkaAllOnly1(b[i][k], a) {
-				return false
+				return true
 			}
 		}
 	}
-	return true
+	return false
 }
 
 func proverkaAllOnly1(a string, b []string) bool {
 	for i := 1; i < len(b)-1; i++ {
-		fmt.Println("b[i]: ", b[i], "       a: ", a)
 		if b[i] == a {
-			fmt.Println("11b[i]: ", b[i], "       a: ", a)
 			return false
 		}
 	}

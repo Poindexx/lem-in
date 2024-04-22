@@ -1,9 +1,11 @@
-10
+1
 ##start
 start 1 6
 0 4 8
 o 6 8
 n 6 6
+z01 11 11
+z02 12 12
 e 8 4
 t 1 9
 E 5 9
@@ -16,6 +18,9 @@ k 11 2
 ##end
 end 11 6
 start-t
+start-z01
+z01-z02
+z02-end
 n-e
 a-m
 A-c
