@@ -35,6 +35,89 @@ type AntFarm struct {
 	End      string
 }
 
+type AntAllPath struct {
+	ArrayRooms     [][]string
+	MaxL           int
+	MaxAnts        int
+	ExcessAnts     int
+	AdditionTunels int
+	FinnalTunnels  int
+}
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Println("ERROR")
+		return
+	}
+	filename := os.Args[1]
+	antFarm, err := ReadAntFarm(filename)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	allPaths, err := FindAllPathsWrapper(antFarm)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	sort.Slice(allPaths, func(i, j int) bool {
+		return len(allPaths[i]) < len(allPaths[j])
+	})
+
+	allPaths3 := make([][][]string, 0)
+	arip := make([]string, 0)
+	for _, path := range allPaths {
+		if !AripT(path[1], arip) {
+			arip = append(arip, path[1])
+			allPaths3 = append(allPaths3, RazdeitMassiv(path[1], allPaths))
+		}
+	}
+
+	allOnly := make([][]string, 0)
+	allOnly2 := make([][][]string, 0)
+	co := 0
+	p := 0
+	aaall := SerchAll2(co, allPaths3, allOnly, allOnly2, p)
+	sort3DArray(aaall)
+	aaall = removeDuplicateArrays(aaall)
+	countAnts := antFarm.AntCount
+	allAnts := AntAllPaths(aaall, countAnts)
+	for _, e := range allAnts {
+		fmt.Println(e)
+	}
+
+}
+
+func AntAllPaths(aaall [][][]string, n int) []*AntAllPath {
+	antAllPaths := make([]*AntAllPath, len(aaall))
+
+	for i, paths := range aaall {
+		antAllPath := &AntAllPath{}
+		for _, path := range paths {
+			l := len(path)
+			if l > antAllPath.MaxL {
+				antAllPath.MaxL = l
+			}
+		}
+		for _, path := range paths {
+			antAllPath.MaxAnts += antAllPath.MaxL - len(path) + 1
+		}
+
+		antAllPath.ExcessAnts = n - antAllPath.MaxAnts
+		antAllPath.AdditionTunels = (antAllPath.ExcessAnts + len(paths) - 1) / len(paths)
+		if n <= antAllPath.MaxAnts {
+			antAllPath.FinnalTunnels = antAllPath.MaxL
+		} else {
+			antAllPath.FinnalTunnels = antAllPath.AdditionTunels + antAllPath.MaxL
+		}
+
+		antAllPath.ArrayRooms = paths
+		antAllPaths[i] = antAllPath
+	}
+
+	return antAllPaths
+}
+
 func ReadAntFarm(filename string) (*AntFarm, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -134,120 +217,99 @@ func FindAllPathsWrapper(antFarm *AntFarm) ([][]string, error) {
 	return allPaths, nil
 }
 
-func main() {
-	if len(os.Args) != 2 {
-		fmt.Println("ERROR")
-		return
+func sort3DArray(arr [][][]string) {
+	for _, subArr := range arr {
+		sort2DArray(subArr)
 	}
-	filename := os.Args[1]
-	antFarm, err := ReadAntFarm(filename)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	allPaths, err := FindAllPathsWrapper(antFarm)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	sort.Slice(allPaths, func(i, j int) bool {
-		return len(allPaths[i]) < len(allPaths[j])
+
+	sort.Slice(arr, func(i, j int) bool {
+		return countElements(arr[i]) < countElements(arr[j])
 	})
-
-	allPaths3 := make([][][]string, 0)
-	arip := make([]string, 0)
-	for _, path := range allPaths {
-		if !AripT(path[1], arip) {
-			arip = append(arip, path[1])
-			allPaths3 = append(allPaths3, RazdeitMassiv(path[1], allPaths))
-		}
-	}
-
-	allOnly := make([][]string, 0)
-	allOnly2 := make([][][]string, 0)
-	co := 0
-	ob := 0
-	qq := 0
-	llen := len(allPaths3)
-	allOnly, allOnly2 = SerchAll(co, ob, allPaths3, allOnly, allOnly2, qq, llen)
-
-	korotki := findShortestPath(allOnly2)
-
-	if len(allOnly) == len(korotki) {
-		for _, pat := range korotki {
-			for _, pa := range pat {
-				fmt.Print(pa, " ")
-			}
-			fmt.Println()
-		}
-	} else {
-		for _, pat := range allOnly {
-			for _, pa := range pat {
-				fmt.Print(pa, " ")
-			}
-			fmt.Println()
-		}
-	}
-
 }
 
-func SerchAll(co, ob int, allPaths3 [][][]string, allOnly [][]string, allOnly2 [][][]string, qq, llen int) ([][]string, [][][]string) {
-	if co == llen {
-		return allOnly, allOnly2
-	} else {
-		qq++
-		if len(allOnly) == llen-1 {
-			allOnly2 = append(allOnly2, append([][]string{}, allOnly...))
+func sort2DArray(arr [][]string) {
+	sort.Slice(arr, func(i, j int) bool {
+		return len(arr[i]) < len(arr[j])
+	})
+}
+
+func countElements(arr [][]string) int {
+	count := 0
+	for _, subArr := range arr {
+		for _, element := range subArr {
+			if element != "" {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func removeDuplicateArrays(allOnly2 [][][]string) [][][]string {
+	uniqueArrays := make([][][]string, 0)
+	encountered := make(map[string]bool)
+	elementsCount := make(map[string]bool)
+
+	for _, arr := range allOnly2 {
+		key := arrayKey(arr)
+
+		if elementsCount[key] {
+			continue
 		}
 
+		if !encountered[key] {
+			encountered[key] = true
+			uniqueArrays = append(uniqueArrays, arr)
+		}
+
+		elementsCount[key] = true
 	}
 
-	co = 0
-	allOnly = allOnly[:0]
-	shuffle(allPaths3)
+	return uniqueArrays
+}
+
+func arrayKey(arr [][]string) string {
+	var key strings.Builder
+	key.WriteString(fmt.Sprintf("%d:", len(arr)))
+
+	for _, subArr := range arr {
+		for _, element := range subArr {
+			key.WriteString(fmt.Sprintf("%s,", element))
+		}
+	}
+
+	return key.String()
+}
+
+func SerchAll2(co int, allPaths3 [][][]string, allOnly [][]string, allOnly2 [][][]string, p1 int) [][][]string {
+	q := 0
 	for i := 0; i < len(allPaths3); i++ {
+		p := 0
 		for k := 0; k < len(allPaths3[i]); k++ {
 			if !proverkaAllOnly(allPaths3[i][k], allOnly) {
 				allOnly = append(allOnly, allPaths3[i][k])
-				co++
-				break
+				p++
 			}
 		}
+		if p == 0 {
+			allOnly2 = append(allOnly2, append([][]string{}, allOnly...))
+			allOnly = make([][]string, 0)
+			q++
+		}
 	}
-
-	if qq%50 == 0 {
-		return SerchAll(co, ob, allPaths3, allOnly, allOnly2, qq, llen-1)
+	if p1 != 1000 {
+		allPaths3 = moveFirstToEnd(allPaths3)
+		return SerchAll2(co, allPaths3, allOnly, allOnly2, p1+1)
 	}
-	return SerchAll(co, ob, allPaths3, allOnly, allOnly2, qq, llen)
+	return allOnly2
 }
 
-func findShortestPath(paths [][][]string) [][]string {
-	if len(paths) == 0 {
-		return nil
-	}
-	shortest := paths[0]
-
-	for i := 1; i < len(paths); i++ {
-		q1 := 0
-		for j := 0; j < len(shortest); j++ {
-			q1 += len(shortest[j])
-		}
-		q2 := 0
-		for j := 0; j < len(paths[i]); j++ {
-			q2 += len(paths[i][j])
-		}
-		if q2 < q1 {
-			shortest = paths[i]
-		}
-	}
-	return shortest
-}
-
-func shuffle(arr [][][]string) {
+func moveFirstToEnd(arr [][][]string) [][][]string {
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(arr), func(i, j int) {
 		arr[i], arr[j] = arr[j], arr[i]
 	})
+	return arr
 }
 
 func proverkaAllOnly(a []string, b [][]string) bool {
