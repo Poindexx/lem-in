@@ -17,11 +17,6 @@ type Room struct {
 	Y    int
 }
 
-type Path struct {
-	Rooms  []string
-	Length int
-}
-
 type Tunnel struct {
 	Room1 string
 	Room2 string
@@ -42,6 +37,13 @@ type AntAllPath struct {
 	ExcessAnts     int
 	AdditionTunels int
 	FinnalTunnels  int
+}
+
+type AntInfo struct {
+	Id    int
+	Room  []string
+	Ves   []int
+	Mesto int
 }
 
 func main() {
@@ -80,12 +82,106 @@ func main() {
 	aaall := SerchAll2(co, allPaths3, allOnly, allOnly2, p)
 	sort3DArray(aaall)
 	aaall = removeDuplicateArrays(aaall)
+	aaall = RemoveDuplicates(aaall)
+	aaall = removeDuplicateArrays(aaall)
+
 	countAnts := antFarm.AntCount
-	allAnts := AntAllPaths(aaall, countAnts)
-	for _, e := range allAnts {
-		fmt.Println(e)
+	antAllPaths := AntAllPaths(aaall, countAnts)
+
+	var minAntAllPath *AntAllPath
+
+	for _, antAllPath := range antAllPaths {
+		if minAntAllPath == nil || antAllPath.FinnalTunnels < minAntAllPath.FinnalTunnels {
+			minAntAllPath = antAllPath
+		}
 	}
 
+	for i := 0; i < len(minAntAllPath.ArrayRooms); i++ {
+		minAntAllPath.ArrayRooms[i] = minAntAllPath.ArrayRooms[i][1:]
+	}
+	ants := RaspredelenyeAnt(minAntAllPath, countAnts)
+	printAntMovements(ants, minAntAllPath)
+
+}
+
+func RaspredelenyeAnt(minAntAllPath *AntAllPath, countAnts int) []AntInfo {
+	ai := make([]AntInfo, countAnts)
+	for i := 0; i < countAnts; i++ {
+		ai[i].Ves = make([]int, len(minAntAllPath.ArrayRooms))
+		for j := 0; j < len(minAntAllPath.ArrayRooms); j++ {
+			ai[i].Ves[j] = len(minAntAllPath.ArrayRooms[j])
+		}
+	}
+
+	for i := 0; i < countAnts; i++ {
+		ai[i].Id = i
+	}
+
+	aa := ai[0].Ves
+	for i := 0; i < countAnts; i++ {
+		l := aa[0]
+		id := 0
+		for i1 := 0; i1 < len(aa); i1++ {
+			if !(aa[i1] > l) {
+				l = aa[i1]
+				id = i1
+			}
+		}
+		aa[id] = aa[id] + 1
+		ai[i].Room = minAntAllPath.ArrayRooms[id]
+	}
+	return ai
+}
+
+func RemoveDuplicates(arr [][][]string) [][][]string {
+	result := make([][][]string, len(arr))
+	for i := 0; i < len(arr); i++ {
+		uniqueMap := make(map[string]bool)
+		var uniqueArr [][]string
+		for j := 0; j < len(arr[i]); j++ {
+			str := strings.Join(arr[i][j], "")
+			if !uniqueMap[str] {
+				uniqueMap[str] = true
+				uniqueArr = append(uniqueArr, arr[i][j])
+			}
+		}
+		result[i] = uniqueArr
+	}
+
+	return result
+}
+
+func printAntMovements(ants []AntInfo, minAntAllPath *AntAllPath) {
+
+	for q := 0; q < minAntAllPath.FinnalTunnels-1; q++ {
+		tekser := make(map[int]string)
+		for i := 0; i < len(ants); i++ {
+			if len(ants[i].Room) == 1 {
+				if ants[i].Mesto < len(ants[i].Room) && ProverkaMassiva(tekser, ants[i].Room[ants[i].Mesto]) {
+					tekser[ants[i].Id] = ants[i].Room[ants[i].Mesto]
+					ants[i].Mesto++
+				}
+			} else {
+				if ants[i].Mesto < len(ants[i].Room) && (ants[i].Mesto == len(ants[i].Room)-1 || ProverkaMassiva(tekser, ants[i].Room[ants[i].Mesto])) {
+					tekser[ants[i].Id] = ants[i].Room[ants[i].Mesto]
+					ants[i].Mesto++
+				}
+			}
+		}
+		for id, value := range tekser {
+			fmt.Printf("l%d-%s ", id+1, value)
+		}
+		fmt.Println()
+	}
+}
+
+func ProverkaMassiva(tekser map[int]string, soz string) bool {
+	for _, value := range tekser {
+		if value == soz {
+			return false
+		}
+	}
+	return true
 }
 
 func AntAllPaths(aaall [][][]string, n int) []*AntAllPath {
@@ -118,6 +214,7 @@ func AntAllPaths(aaall [][][]string, n int) []*AntAllPath {
 	return antAllPaths
 }
 
+// ReadAntFarm считывает данные муравейника из файла и возвращает объект AntFarm.
 func ReadAntFarm(filename string) (*AntFarm, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -130,30 +227,44 @@ func ReadAntFarm(filename string) (*AntFarm, error) {
 	}
 
 	scanner := bufio.NewScanner(file)
+	var startSet, endSet bool // флаги для установки начальной и конечной комнат
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts_t := strings.Fields(line)
 		if strings.HasPrefix(line, "##start") || strings.HasPrefix(line, "##end") {
 			if !scanner.Scan() {
-				return nil, fmt.Errorf("no next line after %s", line)
+				return nil, fmt.Errorf("отсутствует следующая строка после %s", line)
 			}
 			nextLine := scanner.Text()
 			parts := strings.Fields(nextLine)
 			if len(parts) < 3 {
-				return nil, fmt.Errorf("invalid room format: %s", nextLine)
+				return nil, fmt.Errorf("неверный формат комнаты: %s", nextLine)
 			}
 			name := parts[0]
 			x, err := strconv.Atoi(parts[1])
 			if err != nil {
-				return nil, fmt.Errorf("invalid X coordinate: %s", parts[1])
+				return nil, fmt.Errorf("неверная координата X: %s", parts[1])
 			}
 			y, err := strconv.Atoi(parts[2])
 			if err != nil {
-				return nil, fmt.Errorf("invalid Y coordinate: %s", parts[2])
+				return nil, fmt.Errorf("неверная координата Y: %s", parts[2])
 			}
+
+			if _, ok := antFarm.Rooms[name]; ok {
+				return nil, fmt.Errorf("комната с именем %s уже существует", name)
+			}
+
 			if strings.HasPrefix(line, "##start") {
+				if startSet {
+					return nil, fmt.Errorf("дублирующая строка ##start")
+				}
+				startSet = true
 				antFarm.Start = name
 			} else {
+				if endSet {
+					return nil, fmt.Errorf("дублирующая строка ##end")
+				}
+				endSet = true
 				antFarm.End = name
 			}
 			antFarm.Rooms[name] = Room{Name: name, X: x, Y: y}
@@ -161,21 +272,43 @@ func ReadAntFarm(filename string) (*AntFarm, error) {
 			name := parts_t[0]
 			x, _ := strconv.Atoi(parts_t[1])
 			y, _ := strconv.Atoi(parts_t[2])
+
+			if _, ok := antFarm.Rooms[name]; ok {
+				return nil, fmt.Errorf("комната с именем %s уже существует", name)
+			}
+
 			antFarm.Rooms[name] = Room{Name: name, X: x, Y: y}
 		} else if strings.Count(line, "-") == 1 {
 			parts := strings.Split(line, "-")
-			tunnel := Tunnel{Room1: parts[0], Room2: parts[1]}
+			room1 := parts[0]
+			room2 := parts[1]
+
+			// Проверка существования комнаты room1 и room2
+			if _, ok := antFarm.Rooms[room1]; !ok {
+				return nil, fmt.Errorf("комната %s не существует", room1)
+			}
+			if _, ok := antFarm.Rooms[room2]; !ok {
+				return nil, fmt.Errorf("комната %s не существует", room2)
+			}
+
+			tunnel := Tunnel{Room1: room1, Room2: room2}
 			antFarm.Tunnels = append(antFarm.Tunnels, tunnel)
 		} else if len(parts_t) == 1 && !strings.HasPrefix(line, "#") {
 			antCount, err := strconv.Atoi(line)
 			if err != nil {
-				return nil, fmt.Errorf("invalid ant count format: %s", line)
+				return nil, fmt.Errorf("неверный формат количества муравьев: %s", line)
 			}
 			if antCount <= 0 {
-				return nil, fmt.Errorf("invalid ant count format: %s", line)
+				return nil, fmt.Errorf("неверный формат количества муравьев: %s", line)
 			}
 			antFarm.AntCount = antCount
 		}
+	}
+	if !startSet {
+		return nil, fmt.Errorf("не указана начальная комната ##start")
+	}
+	if !endSet {
+		return nil, fmt.Errorf("не указана конечная комната ##end")
 	}
 	return antFarm, nil
 }
@@ -211,7 +344,7 @@ func FindAllPathsWrapper(antFarm *AntFarm) ([][]string, error) {
 	FindAllPaths(antFarm, antFarm.Start, visited, []string{}, &allPaths)
 
 	if len(allPaths) == 0 {
-		return nil, fmt.Errorf("no paths found")
+		return nil, fmt.Errorf("не правильный путь")
 	}
 
 	return allPaths, nil
@@ -264,7 +397,6 @@ func removeDuplicateArrays(allOnly2 [][][]string) [][][]string {
 
 		elementsCount[key] = true
 	}
-
 	return uniqueArrays
 }
 
